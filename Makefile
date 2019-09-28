@@ -13,7 +13,11 @@ RUN_OUTPUTS := $(foreach target, $(SOURCES), run-$(target))
 ########################################
 
 .PHONY: all clean run
-all: clean $(OUTPUTS)
+all: clean
+	mkdir -p $(BINDIR)
+	$(MAKE) build
+
+build: $(OUTPUTS)
 
 clean:
 	rm -rf $(BINDIR)/*
