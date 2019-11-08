@@ -13,15 +13,11 @@ RUN_OUTPUTS := $(foreach target, $(SOURCES), run-$(target))
 ########################################
 
 .PHONY: all clean run
-all: clean
-	mkdir -p $(BINDIR)
-	$(MAKE) build
-
-build: $(OUTPUTS)
+all: clean $(OUTPUTS)
 
 clean:
 	rm -rf $(BINDIR)/*
 	rm -f $(FILNAME)
 
-$(OUTPUTS): clean
+$(OUTPUTS):
 	$(AS) $(patsubst $(BINDIR)%, $(SRCDIR)%, $(@:%.prg=%.asm)) $(ASSFLAGS) -o $@
