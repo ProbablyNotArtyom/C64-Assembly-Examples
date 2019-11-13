@@ -16,6 +16,8 @@
 .var	COLOR_LIGHTBLUE		= $0E
 .var	COLOR_GRAY3			= $0F
 
+//=========================================================
+
 .function _16bit_nextArgument(arg) {
 	.if (arg.getType()==AT_IMMEDIATE)
 	.return CmdArgument(arg.getType(),>arg.getValue())
