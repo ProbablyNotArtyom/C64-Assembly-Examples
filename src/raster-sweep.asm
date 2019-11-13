@@ -1,6 +1,3 @@
-// This is an example effect bundled with Spindle
-// www.linusakesson.net/software/spindle/
-// Feel free to display the Spindle logo in your own demo, if you like.
 
 	#import "../main.asm"
 
@@ -25,8 +22,8 @@
 	stx $FFFE
 	sty $FFFF
 	lda rasterline
-	sta $D012
-	lsr $D019
+	sta VIC_HLINE
+	lsr VIC_IRR
 }
 
 .macro IRQ_SET_IMMEDIATE(irqvec, rasterline) {
@@ -35,8 +32,8 @@
 	stx $FFFE
 	sty $FFFF
 	lda #rasterline
-	sta $D012
-	lsr $D019
+	sta VIC_HLINE
+	lsr VIC_IRR
 }
 
 .macro XWAIT(delay) {
@@ -77,11 +74,11 @@ setup:
 	ldx #$00
 	stx $DC0E
 	inx
-	stx $D01A
+	stx VIC_IMR
 	lda #%01011011
-	sta $d011
+	sta VIC_CTRL1
 	lda #$01
-	sta $D012
+	sta VIC_HLINE
 	sta next_rirq
 	lda #$01
 	sta rirq_count
@@ -102,18 +99,18 @@ irq1:
 	lda #$01
 !:	sta next_rirq
 	lda #$18
-	sta $d016
+	sta VIC_CTRL2
 	lda #COLOR_BLACK
-	sta $D020
+	sta VIC_BORDERCOLOR
 	jmp __irq_return
 
 irq0:
 	IRQ_ENTER()
 	IRQ_SET_IMMEDIATE(irq1, 0)
 	lda #$08
-	sta $d016
+	sta VIC_CTRL2
 	lda #COLOR_LIGHTBLUE
-	sta $d020
+	sta VIC_BORDERCOLOR
 	jmp __irq_return
 
 __irq_return:

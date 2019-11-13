@@ -1,6 +1,6 @@
 
 	#import "../main.asm"
-	
+
 //---------------------------------------
 
 .var	from 	= $32
@@ -21,38 +21,38 @@ init:
 	lda #$7f    // disable timer interrupt
 	sta $dc0d
 	lda #1      // enable raster interrupt
-	sta $d01a
+	sta VIC_IMR
 	lda #<irq   // set irq vector
 	sta $0314
 	lda #>irq
 	sta $0315
 	lda #0      // to evoke our irq routine on 0th line
-	sta $d012
+	sta VIC_HLINE
 	cli         // enable interrupt
 	rts
-	
+
 //---------------------------------------
 
-irq: 
+irq:
 	lda #COLOR_LIGHTBLUE
 	sta $d021
 	ldx	ofset
 	lda sine256,x
 	tax
-l2:	ldy $d012   // moving 1st bad line
-l1:	cpy $d012
+l2:	ldy VIC_HLINE   // moving 1st bad line
+l1:	cpy VIC_HLINE
 	beq l1      // wait for begin of next line
 	dey         // iy - bad line
 	tya
 	and #$07    // clear higher 5 bits
 	ora #$10    // set text mode
-	sta $d011
+	sta VIC_CTRL1
 	dex
 	bne l2
-	
+
 	lda #COLOR_BLUE
 	sta $d021
-	inc $d019   // acknowledge the raster interrupt
+	inc VIC_IRR   // acknowledge the raster interrupt
 	inc ofset   // down
 	lda ofset
 	cmp #to
@@ -61,7 +61,7 @@ l1:	cpy $d012
 	sta ofset
 !:	jmp $ea31   // do standard irq routine
 
-//---------------------------------------	
+//---------------------------------------
 sine256:
 .for(var pad = from; pad > 0; pad--) .byte 00 			// Pad the start of the lookup table
 

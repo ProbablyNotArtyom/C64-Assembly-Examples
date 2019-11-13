@@ -39,20 +39,20 @@ init:
 	sta $dc0d
 	sta $dd0d
 	lda #$00
-	sta $d01a
+	sta VIC_IMR
 
 	lda #<irq1
 	sta $FFFE
 	lda #>irq1
 	sta $FFFF
 	lda #$01
-	sta $d01a
+	sta VIC_IMR
 	lda #raster_update
-	sta $d012
+	sta VIC_HLINE
 	lda #$3b
-	sta $d011
+	sta VIC_CTRL1
 	lda #$D7
-    sta $D016
+    sta VIC_CTRL2
 
 	lda #$00
 	sta	$dc0e
@@ -61,11 +61,11 @@ init:
 	sta $dd0f
 
 	lda #$38
-	sta $d018
+	sta VIC_VIDEO_ADR
 	lda #$00
-	sta $d020
+	sta VIC_BORDERCOLOR
 	lda #picture.getBackgroundColor()
-	sta $d021
+	sta VIC_BG_COLOR0
 	ldx #$00
 !:
 	.for (var i=0; i<4; i++) {
@@ -112,7 +112,7 @@ irq1:
 	lda vsp_hscroll
 	and #$07
 	ora #$D0
-	sta $d016
+	sta VIC_CTRL2
 
 	lda vsp_hscroll_h
 	bne !+
@@ -136,9 +136,9 @@ irq1_end:
 	ldy #raster_trigger
 	sta $FFFE
 	stx $FFFF
-	sty $d012
-	lsr $d019
-	lsr $d019
+	sty VIC_HLINE
+	lsr VIC_IRR
+	lsr VIC_IRR
 
 	pla
 	tax
@@ -161,9 +161,9 @@ irq2:
 	sta $FFFE
 	stx $FFFF
 
-	inc $d012
+	inc VIC_HLINE
 	lda #$01
-	sta $d019
+	sta VIC_IRR
 
 	/* Begin the raster stabilisation code */
 	tsx
@@ -179,12 +179,12 @@ irq3:
 	bne !-
 	bit $ea
 
-	lda $d012
-	cmp $d012
+	lda VIC_HLINE
+	cmp VIC_HLINE
 	beq !+
 
 !:	lda #$11
-	sta $d011
+	sta VIC_CTRL1
 
 	.for (var i = 0; i < 8; i++) nop
 	bit $ea
@@ -202,16 +202,16 @@ noptbl:
 	.for (var i = 0; i <= 28; i++) nop
 
 	lda #%00111011
-	dec $d011
-	sta $d011
+	dec VIC_CTRL1
+	sta VIC_CTRL1
 
 	lda #<irq1
 	ldx #>irq1
 	ldy #$00
 	sta $FFFE
 	stx $FFFF
-	sty $d012
-	lsr $d019
+	sty VIC_HLINE
+	lsr VIC_IRR
 
 	pla
 	tax

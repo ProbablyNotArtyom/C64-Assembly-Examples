@@ -1,6 +1,3 @@
-// This is an example effect bundled with Spindle
-// www.linusakesson.net/software/spindle/
-// Feel free to display the Spindle logo in your own demo, if you like.
 
 	#import "../main.asm"
 	.encoding "screencode_upper"
@@ -25,8 +22,8 @@
 	stx $FFFE
 	sty $FFFF
 	lda rasterline
-	sta $D012
-	lsr $D019
+	sta VIC_HLINE
+	lsr VIC_CTRL1
 }
 
 .macro IRQ_SET_IMMEDIATE(irqvec, rasterline) {
@@ -35,8 +32,8 @@
 	stx $FFFE
 	sty $FFFF
 	lda #rasterline
-	sta $D012
-	lsr $D019
+	sta VIC_HLINE
+	lsr VIC_CTRL1
 }
 
 .macro XWAIT(delay) {
@@ -105,9 +102,9 @@ setup:
 	sta $FFFB
 
 	lda #$16
-	sta $d018
+	sta VIC_VIDEO_ADR
 	lda #$04
-	sta $D012
+	sta VIC_HLINE
 	lda #$01
 	sta offset
 	sta rirq_count
@@ -116,7 +113,7 @@ setup:
 	cli
 
 !:	lda #$00
-!:	cmp $d012
+!:	cmp VIC_HLINE
 	bne !-
 	jmp !--
 
@@ -139,9 +136,9 @@ irq0:
 	pla
 	tay
 	pla
-	lsr $D019
-	inc $d012
-	inc $d012
+	lsr VIC_CTRL1
+	inc VIC_HLINE
+	inc VIC_HLINE
 	rti
 
 __waitpoint:

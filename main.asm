@@ -3,12 +3,65 @@
 	.encoding "petscii_upper"
 
 //-----------------------------------------------------
+// I/O: VIC
 
-	.var	VIC_BORDERCOLOR = $D020
-	.var	VIC_BG_COLOR0   = $D021
-	.var	VIC_BG_COLOR1   = $D022
-	.var	VIC_BG_COLOR2   = $D023
-	.var	VIC_BG_COLOR3   = $D024
+	.var	VIC             	= $D000
+	.var	VIC_SPR0_X      	= $D000
+	.var	VIC_SPR0_Y      	= $D001
+	.var	VIC_SPR1_X      	= $D002
+	.var	VIC_SPR1_Y      	= $D003
+	.var	VIC_SPR2_X      	= $D004
+	.var	VIC_SPR2_Y      	= $D005
+	.var	VIC_SPR3_X      	= $D006
+	.var	VIC_SPR3_Y      	= $D007
+	.var	VIC_SPR4_X      	= $D008
+	.var	VIC_SPR4_Y      	= $D009
+	.var	VIC_SPR5_X      	= $D00A
+	.var	VIC_SPR5_Y      	= $D00B
+	.var	VIC_SPR6_X      	= $D00C
+	.var	VIC_SPR6_Y      	= $D00D
+	.var	VIC_SPR7_X      	= $D00E
+	.var	VIC_SPR7_Y      	= $D00F
+	.var	VIC_SPR_HI_X    	= $D010
+	.var	VIC_SPR_ENA     	= $D015
+	.var	VIC_SPR_EXP_Y   	= $D017
+	.var	VIC_SPR_EXP_X   	= $D01D
+	.var	VIC_SPR_MCOLOR  	= $D01C
+	.var	VIC_SPR_BG_PRIO 	= $D01B
+
+	.var	VIC_SPR_MCOLOR0 	= $D025
+	.var	VIC_SPR_MCOLOR1 	= $D026
+
+	.var	VIC_SPR0_COLOR  	= $D027
+	.var	VIC_SPR1_COLOR  	= $D028
+	.var	VIC_SPR2_COLOR  	= $D029
+	.var	VIC_SPR3_COLOR  	= $D02A
+	.var	VIC_SPR4_COLOR  	= $D02B
+	.var	VIC_SPR5_COLOR  	= $D02C
+	.var	VIC_SPR6_COLOR  	= $D02D
+	.var	VIC_SPR7_COLOR  	= $D02E
+
+	.var	VIC_CTRL1       	= $D011
+	.var	VIC_CTRL2       	= $D016
+
+	.var	VIC_HLINE       	= $D012
+
+	.var	VIC_LPEN_X      	= $D013
+	.var	VIC_LPEN_Y      	= $D014
+
+	.var	VIC_VIDEO_ADR   	= $D018
+
+	.var	VIC_IRR         	= $D019
+	.var	VIC_IMR         	= $D01A
+
+	.var	VIC_BORDERCOLOR 	= $D020
+	.var	VIC_BG_COLOR0   	= $D021
+	.var	VIC_BG_COLOR1   	= $D022
+	.var	VIC_BG_COLOR2   	= $D023
+	.var	VIC_BG_COLOR3   	= $D024
+
+//-----------------------------------------------------
+// Kernal stuff
 
 	.var	CHKIN          	=	$FFC6
 	.var	CKOUT          	=	$FFC9

@@ -15,15 +15,15 @@ BasicUpstart2(init)
 
 init:
 	lda #$38
-	sta $d018
+	sta VIC_VIDEO_ADR
 	lda #$d8
-	sta $d016
+	sta VIC_CTRL2
 	lda #$3b
-	sta $d011
+	sta VIC_CTRL1
 	lda #0
-	sta $d020
+	sta VIC_BORDERCOLOR
 	lda #picture.getBackgroundColor()
-	sta $d021
+	sta VIC_BG_COLOR0
 	ldx #0
 !loop:
 	.for (var i=0; i<4; i++) {
