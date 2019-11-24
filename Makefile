@@ -1,3 +1,5 @@
+CRUNCH = true
+
 BASEDIR := ./
 BINDIR := bin
 SRCDIR := ./src
@@ -21,3 +23,6 @@ clean:
 
 $(OUTPUTS):
 	$(AS) $(patsubst $(BINDIR)%, $(SRCDIR)%, $(@:%.prg=%.asm)) $(ASSFLAGS) -o $@
+ifeq ("$(CRUNCH)","true")
+	exomizer sfx sys $@ -o $@
+endif
