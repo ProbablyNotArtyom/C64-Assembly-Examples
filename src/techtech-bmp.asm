@@ -2,7 +2,6 @@
 	#import "../main.asm"
 	.encoding "screencode_upper"
 
-	.plugin "se.booze.kickass.CruncherPlugins"
 
 //---------------------------------------
 

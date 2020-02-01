@@ -189,4 +189,41 @@
 	sta $D016
 }
 
+.macro copyCharset(SRC, DEST) {
+	ldy #7
+!:	ldx #0
+src_hi:
+    lda SRC,x
+dst_hi:
+    sta DEST,x
+    dex
+    bne src_hi
+    inc src_hi+2
+    inc dst_hi+2
+    dey
+    bpl !-
+}
+
+.macro copyMap(WIDTH, HEIGHT, SRC, DEST) {
+	ldx #$00
+!:	.for (var i=0; i<HEIGHT; i++) {
+		lda SRC+(i*WIDTH),x
+		sta DEST+(i*40),x
+	}
+	inx
+	cpx #WIDTH
+	bne !-
+}
+
+.macro copyMapCutoff(WIDTH, HEIGHT, SRC, DEST, XCUTOFF) {
+	ldx #$00
+!:	.for (var i=0; i<HEIGHT; i++) {
+		lda SRC+(i*WIDTH),x
+		sta DEST+(i*40),x
+	}
+	inx
+	cpx #XCUTOFF
+	bne !-
+}
+
 //=========================================================

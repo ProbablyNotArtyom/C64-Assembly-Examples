@@ -3,278 +3,85 @@
 
 //---------------------------------------
 
-.const 	addr_init 		= $0820
-.const 	addr_scr 		= $0400
+.const addr_init =			$1000
+.const addr_bmp = 			$2000
+.const addr_scr = 			$0C00
+.const addr_color = 		$810
 
-.const 	raster_trigger 	= 45
-.const 	raster_update 	= 10
+.var COLORS_COUNT 	= 256
+.var MAP_COUNT 		= 81
+.var CHARSET_COUNT 	= 2048
 
-.var 	COLORS_COUNT 	= 256
-.var 	MAP_COUNT 		= 112
-.var 	CHARSET_COUNT 	= 2048
-.var 	MAP_WIDTH		= 29
-.var 	MAP_HEIGHT 		= 5
+.var MAP_WIDTH	= 27
+.var MAP_HEIGHT = 3
 
 //---------------------------------------
 
-*=$0801 "Basic"
+* = $0801 "Basic"
 BasicUpstart2(init)
-*=addr_init "Program"
+* = addr_init "Program"
 
 init:
-	sei         // disable interrupt
-	ldx #$FF
-	txs
+	ClearScreen($400, $20)
 
-	lda #$00
-	sta $3FFF
-	lda #%00101111
-	sta $00
-	lda #%00100101
-	sta $01
+	lda #COLOR_GRAY1
+    ldx #$00
+!:  sta $d800,x
+    sta $d900,x
+    sta $da00,x
+    sta $db00,x
+    inx
+    bne !-
 
-	lda #$7f    // disable timer interrupt
-	sta $dc0d
-	sta $dd0d
-	lda #$00
-	sta VIC_IMR
-
-	lda #<irq1
-	sta $FFFE
-	lda #>irq1
-	sta $FFFF
-	lda #$01
-	sta VIC_IMR
-	lda #raster_update
-	sta VIC_HLINE
-	lda #%00011011
-	sta VIC_CTRL1
-	lda #%11010111
-    sta VIC_CTRL2
-
-	lda #$00
-	sta	$dc0e
-	sta	$dd0f
-	sta	$dc0e
-	sta $dd0f
-
-	// Insert custom graphics
-	set_screen_char_base(addr_scr, $3800)
-	ClearScreen(addr_scr, 102)
-	ClearColorRam(COLOR_GRAY1)
 	SetBorderColor(COLOR_BLACK)
     SetBackgroundColor(COLOR_BLACK)
     SetMultiColor1(COLOR_BLUE)
 	SetMultiColor2(COLOR_WHITE)
-	copyCharset(charset, $3800)
 
-	.for(var i=0; i<6; i++) {
-		copyMap(MAP_WIDTH, MAP_HEIGHT, map, $400+(i*4)+(i*40*MAP_HEIGHT))
+	SetMultiColorMode()
+    set_screen_char_base($400, $3800)
+
+	.for(var i=0; i<8; i++) {
+		copyMapCutoff(MAP_WIDTH, MAP_HEIGHT, map+(MAP_WIDTH-i), $400+(i*40*MAP_HEIGHT), i)
+		copyMap(MAP_WIDTH, MAP_HEIGHT, map, $400+i+(i*40*MAP_HEIGHT))
+		copyMapCutoff(MAP_WIDTH, MAP_HEIGHT, map, $400+(i+MAP_WIDTH)+(i*40*MAP_HEIGHT), (40-MAP_WIDTH-i))
 	}
 
-	cli
-	ldy #$00
-loop:
-	lda raster_stable
-	beq loop
-	sty raster_stable
-
-	inc temp1
-	ldx temp1
-	lda bigSine,x
-	sta vsp_hscroll
-	lda bigSine_h,x
-	sta vsp_hscroll_h
-
-	lda vsp_hscroll_h
-	beq !+
-	lda vsp_hscroll
-	cmp #48
-	bne !+
-	lda #$00
-	sta vsp_hscroll
-	sta vsp_hscroll_h
-!:	jmp loop
+    jsr setup_charset
+    jmp *                           // infinite loop
 
 //---------------------------------------
 
-irq1:
-	pha
-	tya
-	pha
-	txa
-	pha
-
-	/* Do fine scrolling */
-	lda vsp_hscroll
-	and #%00000111
-	ora #%11010000
-	sta VIC_CTRL2
-
-	lda vsp_hscroll_h
-	bne !+
-	/* vsp_scroll offset is less than 256 */
-	lda vsp_hscroll
-	lsr
-	lsr
-	lsr
-	sta x_offset
-	jmp irq1_end
-	/* vsp_scroll offset larger than a byte */
-!:	lda vsp_hscroll
-	and #%00111111
-	tax
-	lda coarseTbl_upper,x
-	sta x_offset
-
-irq1_end:
-	lda #<irq2
-	ldx #>irq2
-	ldy #raster_trigger
-	sta $FFFE
-	stx $FFFF
-	sty VIC_HLINE
-	lsr VIC_IRR
-	lsr VIC_IRR
-
-	pla
-	tax
-	pla
-	tay
-	pla
-	rti
-
-.align $100
-irq2:
-	pha
-	tya
-	pha
-	txa
-	pha
-
-	inc raster_stable
-	lda #<irq3
-	ldx #>irq3
-	sta $FFFE
-	stx $FFFF
-
-	inc VIC_HLINE
-	lda #$01
-	sta VIC_IRR
-
-	/* Begin the raster stabilisation code */
-	tsx
-	cli
-	/* These nops never really finish due to the raster IRQ triggering again */
-	.for (var i = 0; i < 14; i++) nop
-
-.align $100
-irq3:
-	txs
-	ldx #$08
-!:	dex
-	bne !-
-	bit $ea
-
-	lda VIC_HLINE
-	cmp VIC_HLINE
-	beq !+
-
-!:	lda #%00110001
-	sta VIC_CTRL1
-
-	.for (var i = 0; i < 8; i++) nop
-	bit $ea
-
-	lda #39
-	sec
-	sbc x_offset
-	lsr				// Divide by 2
-	sta noptbl+1	// Modify the opcode to branch for us
-	clv				// Force the branch to happen
-	bcc noptbl		// Branch into the table
-
-noptbl:
-	bvc *
-	.for (var i = 0; i <= 28; i++) nop
-
-	lda #%00011011
-	dec VIC_CTRL1
-	sta VIC_CTRL1
-
-	lda #<irq1
-	ldx #>irq1
-	ldy #$00
-	sta $FFFE
-	stx $FFFF
-	sty VIC_HLINE
-	lsr VIC_IRR
-
-	pla
-	tax
-	pla
-	tay
-	pla
-	rti
+setup_charset:
+    ldy #7
+!:	ldx #0
+src_hi:
+    lda charset,x
+dst_hi:
+    sta $3800,x
+    dex
+    bne src_hi
+    inc src_hi+2
+    inc dst_hi+2
+    dey
+    bpl !-
+    rts
 
 //---------------------------------------
 
-coarseTbl_upper:
-	.for (var i = 32; i < 39; i++)
-		.byte i, i, i, i, i, i, i, i
-	.for (var i = 0; i < 24; i++)
-		.byte i, i, i, i, i, i, i, i
-
-bigSine:
-        .byte $00, $00, $03, $06, $0C, $12, $1A, $24, $2E, $39, $45, $52, $5F, $6D, $7B, $89
-        .byte $96, $A4, $B1, $BD, $C9, $D4, $DE, $E7, $EE, $F5, $FA, $FE, $01, $02, $02, $01
-        .byte $FF, $FC, $F8, $F3, $ED, $E6, $DF, $D7, $CF, $C7, $BF, $B7, $AF, $A8, $A1, $9A
-        .byte $94, $8F, $8B, $87, $84, $82, $81, $81, $81, $82, $84, $86, $89, $8C, $8F, $93
-        .byte $96, $9A, $9E, $A1, $A4, $A6, $A8, $AA, $AA, $AA, $A9, $A8, $A5, $A2, $9E, $99
-        .byte $94, $8E, $87, $80, $78, $70, $68, $60, $58, $50, $49, $42, $3B, $36, $31, $2D
-        .byte $2B, $29, $28, $29, $2B, $2F, $33, $39, $40, $49, $52, $5C, $68, $74, $81, $8E
-        .byte $9C, $A9, $B7, $C5, $D2, $E0, $EC, $F8, $02, $0C, $15, $1C, $22, $27, $2A, $2B
-        .byte $2B, $2A, $27, $22, $1C, $15, $0C, $02, $F8, $EC, $E0, $D2, $C5, $B7, $A9, $9C
-        .byte $8E, $81, $74, $68, $5C, $52, $49, $40, $39, $33, $2F, $2B, $29, $28, $29, $2B
-        .byte $2D, $31, $36, $3B, $42, $49, $50, $58, $60, $68, $70, $78, $80, $87, $8E, $94
-        .byte $99, $9E, $A2, $A5, $A8, $A9, $AA, $AA, $AA, $A8, $A6, $A4, $A1, $9E, $9A, $96
-        .byte $93, $8F, $8C, $89, $86, $84, $82, $81, $81, $81, $82, $84, $87, $8B, $8F, $94
-        .byte $9A, $A1, $A8, $AF, $B7, $BF, $C7, $CF, $D7, $DF, $E6, $ED, $F3, $F8, $FC, $FF
-        .byte $01, $02, $02, $01, $FE, $FA, $F5, $EE, $E7, $DE, $D4, $C9, $BD, $B1, $A4, $96
-        .byte $89, $7B, $6D, $5F, $52, $45, $39, $2E, $24, $1A, $12, $0C, $06, $03, $00, $00
-bigSine_h:
-        .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $01, $01, $01, $01
-        .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        .byte $00, $00, $00, $00, $00, $00, $00, $00, $01, $01, $01, $01, $01, $01, $01, $01
-        .byte $01, $01, $01, $01, $01, $01, $01, $01, $00, $00, $00, $00, $00, $00, $00, $00
-        .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        .byte $01, $01, $01, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-        .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-
-//---------------------------------------
-
-raster_stable: 		.byte $00
-temp1:				.byte $00
-x_offset:			.byte $00
-
-vsp_hscroll:		.byte $00
-vsp_hscroll_h:		.byte $00
+colors:
+	.for(var i=0; i<256; i++) {
+		.byte COLOR_VIOLET
+	}
 
 map:
-	.byte $20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20
-	.byte $20,$86,$a3,$c6,$86,$a3,$c6,$87,$a7,$c7,$86,$a3,$c6,$83,$84,$85,$87,$a7,$c7,$80,$81,$82,$86,$a3,$c6,$c3,$c4,$c5,$20
-	.byte $20,$a6,$20,$e6,$a6,$20,$e6,$20,$a6,$20,$a6,$e4,$e5,$a6,$a4,$a5,$20,$a6,$20,$a0,$a1,$a2,$a6,$20,$e6,$a6,$e3,$e6,$20
-	.byte $20,$c0,$20,$c0,$e0,$e1,$e2,$20,$c0,$20,$c0,$20,$c0,$c0,$20,$c0,$20,$c0,$20,$20,$c0,$20,$e0,$e1,$e2,$c0,$20,$c0,$20
-	.byte $20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20
+	.byte $86,$a3,$c6,$86,$a3,$c6,$87,$a7,$c7,$86,$a3,$c6,$83,$84,$85,$87	// 0
+	.byte $a7,$c7,$80,$81,$82,$86,$a3,$c6,$c3,$c4,$c5,$a6,$20,$e6,$a6,$20	// 16
+	.byte $e6,$20,$a6,$20,$a6,$e4,$e5,$a6,$a4,$a5,$20,$a6,$20,$a0,$a1,$a2	// 32
+	.byte $a6,$20,$e6,$a6,$e3,$e6,$c0,$20,$c0,$e0,$e1,$e2,$20,$c0,$20,$c0	// 48
+	.byte $20,$c0,$c0,$20,$c0,$20,$c0,$20,$20,$c0,$20,$e0,$e1,$e2,$c0,$20	// 64
+	.byte $c0																// 80
+
 charset:
 	.byte $3c,$66,$6e,$6e,$60,$62,$3c,$00,$18,$3c,$66,$7e,$66,$66,$66,$00	// 0
 	.byte $7c,$66,$66,$7c,$66,$66,$7c,$00,$3c,$66,$60,$60,$60,$66,$3c,$00	// 16
