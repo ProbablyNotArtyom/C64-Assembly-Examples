@@ -1,12 +1,18 @@
 
-	#import "../main.asm"
+	#import "../include/system.inc"
+	#import "../include/kernal.inc"
+	#import "../include/macros.inc"
 
-.var	Screen 	= $0400
-.var	Color 	= $D800
+//-----------------------------------------------------
 
-.var	rirq_count 		= $20
-.var	next_rirq_hi 	= $21
-.var	next_rirq 		= $22
+.var Screen 			= $0400
+.var Color 				= $D800
+
+.var rirq_count 		= $20
+.var next_rirq_hi 		= $21
+.var next_rirq 			= $22
+
+//-----------------------------------------------------
 
 .macro IRQ_ENTER() {
 	pha
@@ -19,21 +25,21 @@
 .macro IRQ_SET(irqvec, rasterline) {
 	ldx #<irqvec
 	ldy #>irqvec
-	stx $FFFE
-	sty $FFFF
+	stx sysvec_IRQ
+	sty sysvec_IRQ+1
 	lda rasterline
-	sta VIC_HLINE
-	lsr VIC_IRR
+	sta VIC_raster
+	lsr VIC_irq_state
 }
 
 .macro IRQ_SET_IMMEDIATE(irqvec, rasterline) {
 	ldx #<irqvec
 	ldy #>irqvec
-	stx $FFFE
-	sty $FFFF
+	stx sysvec_IRQ
+	sty sysvec_IRQ+1
 	lda #rasterline
-	sta VIC_HLINE
-	lsr VIC_IRR
+	sta VIC_raster
+	lsr VIC_irq_state
 }
 
 .macro XWAIT(delay) {
@@ -53,32 +59,33 @@
 *=$0801 "Basic"
 BasicUpstart2(setup)
 *=$810 "Program"
+
 setup:
 	sei
 	lda #$0e
-	sta VIC_BG_COLOR0
-	sta VIC_BG_COLOR1
-	sta VIC_BG_COLOR2
-	sta VIC_BG_COLOR3
+	sta VIC_bg_color0
+	sta VIC_bg_color1
+	sta VIC_bg_color2
+	sta VIC_bg_color3
 	lda #$35
 	sta $01
 
 	lda #<irq0
-	sta $FFFE
+	sta sysvec_IRQ
 	lda #>irq0
-	sta $FFFF
-	lda #<__waitpoint
-	sta $FFFA
+	sta sysvec_IRQ+1
+	lda #<__waitpoint		// Make the RESTORE key not crash everything
+	sta sysvec_NMI
 	lda #>__waitpoint
-	sta $FFFB
+	sta sysvec_NMI+1
 	ldx #$00
 	stx $DC0E
 	inx
-	stx VIC_IMR
+	stx VIC_irq_mask
 	lda #%01011011
-	sta VIC_CTRL1
+	sta VIC_config1
 	lda #$01
-	sta VIC_HLINE
+	sta VIC_raster
 	sta next_rirq
 	lda #$01
 	sta rirq_count
@@ -99,18 +106,18 @@ irq1:
 	lda #$01
 !:	sta next_rirq
 	lda #$18
-	sta VIC_CTRL2
+	sta VIC_config2
 	lda #COLOR_BLACK
-	sta VIC_BORDERCOLOR
+	sta VIC_border_color
 	jmp __irq_return
 
 irq0:
 	IRQ_ENTER()
 	IRQ_SET_IMMEDIATE(irq1, 0)
 	lda #$08
-	sta VIC_CTRL2
+	sta VIC_config2
 	lda #COLOR_LIGHTBLUE
-	sta VIC_BORDERCOLOR
+	sta VIC_border_color
 	jmp __irq_return
 
 __irq_return:
@@ -121,6 +128,8 @@ __irq_return:
 	pla
 __waitpoint:
 	rti
+
+//-----------------------------------------------------
 
 sine256:
 	.byte	$00, $03, $06, $09, $0D, $10, $13, $16

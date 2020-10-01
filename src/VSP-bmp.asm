@@ -1,23 +1,25 @@
 
-	#import "../main.asm"
+	#import "../include/system.inc"
+	#import "../include/kernal.inc"
+	#import "../include/macros.inc"
 
-//---------------------------------------
+//-----------------------------------------------------
 
-.const addr_init =			$1000
-.const addr_bmp = 			$2000
-.const addr_scr = 			$0C00
-.const addr_color = 		$810
+.const addr_init		= $1000
+.const addr_bmp			= $2000
+.const addr_scr			= $0C00
+.const addr_color		= $810
 
-.const bitmap_filname = 	"Atilla.prg";
-.const raster_trigger = 	45;
-.const raster_update = 		10;
+.const bitmap_filname	= "Atilla.prg";
+.const raster_trigger	= 45;
+.const raster_update	= 10;
 
-//---------------------------------------
+//-----------------------------------------------------
 
-.const BMPDAT = 			"C64FILE, Bitmap=$0000, ScreenRam=$1f40, ColorRam=$2328, BackgroundColor = $2710"
-.var picture = 				LoadBinary(bitmap_filname, BMPDAT)
+.const BMPDAT			= "C64FILE, Bitmap=$0000, ScreenRam=$1f40, ColorRam=$2328, BackgroundColor = $2710"
+.var picture			= LoadBinary(bitmap_filname, BMPDAT)
 
-//---------------------------------------
+//-----------------------------------------------------
 
 *=$0801 "Basic"
 BasicUpstart2(init)
@@ -39,20 +41,20 @@ init:
 	sta $dc0d
 	sta $dd0d
 	lda #$00
-	sta VIC_IMR
+	sta VIC_irq_mask
 
 	lda #<irq1
-	sta $FFFE
+	sta sysvec_IRQ
 	lda #>irq1
-	sta $FFFF
+	sta sysvec_IRQ+1
 	lda #$01
-	sta VIC_IMR
+	sta VIC_irq_mask
 	lda #raster_update
-	sta VIC_HLINE
+	sta VIC_raster
 	lda #$3b
-	sta VIC_CTRL1
+	sta VIC_config1
 	lda #$D7
-    sta VIC_CTRL2
+    sta VIC_config2
 
 	lda #$00
 	sta	$dc0e
@@ -61,11 +63,11 @@ init:
 	sta $dd0f
 
 	lda #$38
-	sta VIC_VIDEO_ADR
+	sta VIC_memory_config
 	lda #$00
-	sta VIC_BORDERCOLOR
+	sta VIC_border_color
 	lda #picture.getBackgroundColor()
-	sta VIC_BG_COLOR0
+	sta VIC_bg_color0
 	ldx #$00
 !:
 	.for (var i=0; i<4; i++) {
@@ -99,7 +101,7 @@ loop:
 	sta vsp_hscroll_h
 !:	jmp loop
 
-//---------------------------------------
+//-----------------------------------------------------
 
 irq1:
 	pha
@@ -112,10 +114,11 @@ irq1:
 	lda vsp_hscroll
 	and #$07
 	ora #$D0
-	sta VIC_CTRL2
+	sta VIC_config2
 
 	lda vsp_hscroll_h
 	bne !+
+
 	/* vsp_scroll offset is less than 256 */
 	lda vsp_hscroll
 	lsr
@@ -123,6 +126,7 @@ irq1:
 	lsr
 	sta x_offset
 	jmp irq1_end
+
 	/* vsp_scroll offset larger than a byte */
 !:	lda vsp_hscroll
 	and #$3F
@@ -134,11 +138,11 @@ irq1_end:
 	lda #<irq2
 	ldx #>irq2
 	ldy #raster_trigger
-	sta $FFFE
-	stx $FFFF
-	sty VIC_HLINE
-	lsr VIC_IRR
-	lsr VIC_IRR
+	sta sysvec_IRQ
+	stx sysvec_IRQ+1
+	sty VIC_raster
+	lsr VIC_irq_state
+	lsr VIC_irq_state
 
 	pla
 	tax
@@ -158,12 +162,12 @@ irq2:
 	inc raster_stable
 	lda #<irq3
 	ldx #>irq3
-	sta $FFFE
-	stx $FFFF
+	sta sysvec_IRQ
+	stx sysvec_IRQ+1
 
-	inc VIC_HLINE
+	inc VIC_raster
 	lda #$01
-	sta VIC_IRR
+	sta VIC_irq_state
 
 	/* Begin the raster stabilisation code */
 	tsx
@@ -179,12 +183,12 @@ irq3:
 	bne !-
 	bit $ea
 
-	lda VIC_HLINE
-	cmp VIC_HLINE
+	lda VIC_raster
+	cmp VIC_raster
 	beq !+
 
 !:	lda #$11
-	sta VIC_CTRL1
+	sta VIC_config1
 
 	.for (var i = 0; i < 8; i++) nop
 	bit $ea
@@ -202,16 +206,16 @@ noptbl:
 	.for (var i = 0; i <= 28; i++) nop
 
 	lda #%00111011
-	dec VIC_CTRL1
-	sta VIC_CTRL1
+	dec VIC_config1
+	sta VIC_config1
 
 	lda #<irq1
 	ldx #>irq1
 	ldy #$00
-	sta $FFFE
-	stx $FFFF
-	sty VIC_HLINE
-	lsr VIC_IRR
+	sta sysvec_IRQ
+	stx sysvec_IRQ+1
+	sty VIC_raster
+	lsr VIC_irq_state
 
 	pla
 	tax
@@ -220,7 +224,7 @@ noptbl:
 	pla
 	rti
 
-//---------------------------------------
+//-----------------------------------------------------
 
 coarseTbl_upper:
 	.for (var i = 32; i < 39; i++)
@@ -263,7 +267,7 @@ bigSine_h:
         .byte $01, $01, $01, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
         .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
 
-//---------------------------------------
+//-----------------------------------------------------
 
 raster_stable: 		.byte $00
 temp1:				.byte $00
@@ -272,7 +276,7 @@ x_offset:			.byte $00
 vsp_hscroll:		.byte $00
 vsp_hscroll_h:		.byte $00
 
-//---------------------------------------
+//-----------------------------------------------------
 
 *=addr_scr;
 	.fill picture.getScreenRamSize(), picture.getScreenRam(i)

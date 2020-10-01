@@ -1,25 +1,27 @@
 
-	#import "../main.asm"
+	#import "../include/system.inc"
+	#import "../include/kernal.inc"
+	#import "../include/macros.inc"
 
-//---------------------------------------
+//-----------------------------------------------------
 
-.const addr_init =			$1000
-.const addr_bmp = 			$2000
-.const addr_scr = 			$0C00
-.const addr_color = 		$810
+.const addr_init		= $1000
+.const addr_bmp			= $2000
+.const addr_scr			= $0C00
+.const addr_color		= $810
 
-.var COLORS_COUNT 	= 256
-.var MAP_COUNT 		= 81
-.var CHARSET_COUNT 	= 2048
+.var COLORS_COUNT		= 256
+.var MAP_COUNT			= 81
+.var CHARSET_COUNT		= 2048
 
-.var MAP_WIDTH	= 27
-.var MAP_HEIGHT = 3
+.var MAP_WIDTH			= 27
+.var MAP_HEIGHT			= 3
 
-//---------------------------------------
+//-----------------------------------------------------
 
-* = $0801 "Basic"
+*=$0801 "Basic"
 BasicUpstart2(init)
-* = addr_init "Program"
+*=addr_init "Program"
 
 init:
 	ClearScreen($400, $20)
@@ -48,9 +50,9 @@ init:
 	}
 
     jsr setup_charset
-    jmp *                           // infinite loop
+    jmp *					// infinite loop
 
-//---------------------------------------
+//-----------------------------------------------------
 
 setup_charset:
     ldy #7
@@ -67,7 +69,7 @@ dst_hi:
     bpl !-
     rts
 
-//---------------------------------------
+//-----------------------------------------------------
 
 colors:
 	.for(var i=0; i<256; i++) {

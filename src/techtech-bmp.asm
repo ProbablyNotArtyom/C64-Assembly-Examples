@@ -1,27 +1,28 @@
 
-	#import "../main.asm"
+	#import "../include/system.inc"
+	#import "../include/kernal.inc"
+	#import "../include/macros.inc"
 	.encoding "screencode_upper"
 
+//-----------------------------------------------------
 
-//---------------------------------------
+.var Screen 			= $0400
+.var Color 				= $D800
 
-.var	Screen 			= $0400
-.var	Color 			= $D800
+.var rirq_count 		= $20
+.var offset		 		= $21
 
-.var	rirq_count 		= $20
-.var	offset		 	= $21
+.const addr_init 		= $1000
+.const addr_bmp 		= $2000
+.const addr_scr 		= $0C00
+.const addr_color 		= $810
 
-.const addr_init =		$1000
-.const addr_bmp = 		$2000
-.const addr_scr = 		$0C00
-.const addr_color = 	$810
+//-----------------------------------------------------
 
-//---------------------------------------
+.const BMPDAT			= "C64FILE, Bitmap=$0000, ScreenRam=$1f40, ColorRam=$2328, BackgroundColor = $2710"
+.var picture			= LoadBinary("Atilla.prg", BMPDAT)
 
-.const BMPDAT = 		"C64FILE, Bitmap=$0000, ScreenRam=$1f40, ColorRam=$2328, BackgroundColor = $2710"
-.var picture = 			LoadBinary("Atilla.prg", BMPDAT)
-
-//---------------------------------------
+//-----------------------------------------------------
 
 .macro IRQ_ENTER() {
 	pha
@@ -34,21 +35,21 @@
 .macro IRQ_SET(irqvec, rasterline) {
 	ldx #<irqvec
 	ldy #>irqvec
-	stx $FFFE
-	sty $FFFF
+	stx sysvec_IRQ
+	sty sysvec_IRQ+1
 	lda rasterline
-	sta VIC_HLINE
-	lsr VIC_CTRL1
+	sta VIC_raster
+	lsr VIC_config1
 }
 
 .macro IRQ_SET_IMMEDIATE(irqvec, rasterline) {
 	ldx #<irqvec
 	ldy #>irqvec
-	stx $FFFE
-	sty $FFFF
+	stx sysvec_IRQ
+	sty sysvec_IRQ+1
 	lda #rasterline
-	sta VIC_HLINE
-	lsr VIC_CTRL1
+	sta VIC_raster
+	lsr VIC_config1
 }
 
 .macro XWAIT(delay) {
@@ -63,7 +64,7 @@
 	bne !-
 }
 
-//-----------------------------------------------------
+//-------------------------------------------------------------------
 
 *=$0801 "Basic"
 BasicUpstart2(setup)
@@ -73,22 +74,22 @@ setup:
 	sei
 
 	lda #<irq0
-	sta $FFFE
+	sta sysvec_IRQ
 	lda #>irq0
-	sta $FFFF
-	lda #<__waitpoint
-	sta $FFFA
+	sta sysvec_IRQ+1
+	lda #<__waitpoint		// Make the RESTORE key not crash everything
+	sta sysvec_NMI
 	lda #>__waitpoint
-	sta $FFFB
+	sta sysvec_NMI+1
 
 	lda #$38
-	sta VIC_VIDEO_ADR
+	sta VIC_memory_config
 	lda #$3B
-	sta VIC_CTRL1
+	sta VIC_config1
 	lda #$00
-	sta VIC_BORDERCOLOR
+	sta VIC_border_color
 	lda #picture.getBackgroundColor()
-	sta VIC_BG_COLOR0
+	sta VIC_bg_color0
 	ldx #$00
 !:
 	.for (var i=0; i<4; i++) {
@@ -99,7 +100,7 @@ setup:
 	bne !-
 
 	lda #$04
-	sta VIC_HLINE
+	sta VIC_raster
 	lda #$01
 	sta offset
 	sta rirq_count
@@ -108,7 +109,7 @@ setup:
 	cli
 
 !:	lda #$00
-!:	cmp VIC_HLINE
+!:	cmp VIC_raster
 	bne !-
 	jmp !--
 
@@ -116,8 +117,8 @@ irq0:
 	IRQ_ENTER()
 	ldx #<irq0
 	ldy #>irq0
-	stx $FFFE
-	sty $FFFF
+	stx sysvec_IRQ
+	sty sysvec_IRQ+1
 	inc rirq_count
 	lda rirq_count
 	beq !++
@@ -126,21 +127,21 @@ irq0:
 	lda sine256,x
 !:	and #$07
 	ora #$10
-	sta VIC_CTRL2
+	sta VIC_config2
 !:	pla
 	tax
 	pla
 	tay
 	pla
-	lsr VIC_IRR
-	inc VIC_HLINE
-	inc VIC_HLINE
+	lsr VIC_irq_state
+	inc VIC_raster
+	inc VIC_raster
 	rti
 
 __waitpoint:
 	rti
 
-//---------------------------------------
+//-----------------------------------------------------
 
 sine256:
 	.byte   $04, $04, $04, $05, $05, $05, $05, $06
@@ -152,7 +153,7 @@ sine256:
 	.byte   $00, $00, $00, $00, $00, $00, $01, $01
 	.byte   $01, $01, $02, $02, $02, $02, $03, $03
 
-//---------------------------------------
+//-----------------------------------------------------
 
 *=addr_scr;
 	.fill picture.getScreenRamSize(), picture.getScreenRam(i)

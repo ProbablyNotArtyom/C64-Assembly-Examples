@@ -1,21 +1,23 @@
 
-	#import "../main.asm"
+	#import "../include/system.inc"
+	#import "../include/kernal.inc"
+	#import "../include/macros.inc"
 
-//---------------------------------------
+//-----------------------------------------------------
 
-.const 	addr_init 		= $0820
-.const 	addr_scr 		= $0400
+.const addr_init		= $0820
+.const addr_scr			= $0400
 
-.const 	raster_trigger 	= 45
-.const 	raster_update 	= 10
+.const raster_trigger	= 45
+.const raster_update	= 10
 
-.var 	COLORS_COUNT 	= 256
-.var 	MAP_COUNT 		= 112
-.var 	CHARSET_COUNT 	= 2048
-.var 	MAP_WIDTH		= 29
-.var 	MAP_HEIGHT 		= 5
+.var COLORS_COUNT		= 256
+.var MAP_COUNT			= 112
+.var CHARSET_COUNT		= 2048
+.var MAP_WIDTH			= 29
+.var MAP_HEIGHT			= 5
 
-//---------------------------------------
+//-----------------------------------------------------
 
 *=$0801 "Basic"
 BasicUpstart2(init)
@@ -37,20 +39,20 @@ init:
 	sta $dc0d
 	sta $dd0d
 	lda #$00
-	sta VIC_IMR
+	sta VIC_irq_mask
 
 	lda #<irq1
-	sta $FFFE
+	sta sysvec_IRQ
 	lda #>irq1
-	sta $FFFF
+	sta sysvec_IRQ+1
 	lda #$01
-	sta VIC_IMR
+	sta VIC_irq_mask
 	lda #raster_update
-	sta VIC_HLINE
+	sta VIC_raster
 	lda #%00011011
-	sta VIC_CTRL1
+	sta VIC_config1
 	lda #%11010111
-    sta VIC_CTRL2
+    sta VIC_config2
 
 	lda #$00
 	sta	$dc0e
@@ -96,7 +98,7 @@ loop:
 	sta vsp_hscroll_h
 !:	jmp loop
 
-//---------------------------------------
+//-----------------------------------------------------
 
 irq1:
 	pha
@@ -109,10 +111,11 @@ irq1:
 	lda vsp_hscroll
 	and #%00000111
 	ora #%11010000
-	sta VIC_CTRL2
+	sta VIC_config2
 
 	lda vsp_hscroll_h
 	bne !+
+
 	/* vsp_scroll offset is less than 256 */
 	lda vsp_hscroll
 	lsr
@@ -120,6 +123,7 @@ irq1:
 	lsr
 	sta x_offset
 	jmp irq1_end
+
 	/* vsp_scroll offset larger than a byte */
 !:	lda vsp_hscroll
 	and #%00111111
@@ -131,11 +135,11 @@ irq1_end:
 	lda #<irq2
 	ldx #>irq2
 	ldy #raster_trigger
-	sta $FFFE
-	stx $FFFF
-	sty VIC_HLINE
-	lsr VIC_IRR
-	lsr VIC_IRR
+	sta sysvec_IRQ
+	stx sysvec_IRQ+1
+	sty VIC_raster
+	lsr VIC_irq_state
+	lsr VIC_irq_state
 
 	pla
 	tax
@@ -155,12 +159,12 @@ irq2:
 	inc raster_stable
 	lda #<irq3
 	ldx #>irq3
-	sta $FFFE
-	stx $FFFF
+	sta sysvec_IRQ
+	stx sysvec_IRQ+1
 
-	inc VIC_HLINE
+	inc VIC_raster
 	lda #$01
-	sta VIC_IRR
+	sta VIC_irq_state
 
 	/* Begin the raster stabilisation code */
 	tsx
@@ -176,12 +180,12 @@ irq3:
 	bne !-
 	bit $ea
 
-	lda VIC_HLINE
-	cmp VIC_HLINE
+	lda VIC_raster
+	cmp VIC_raster
 	beq !+
 
 !:	lda #%00110001
-	sta VIC_CTRL1
+	sta VIC_config1
 
 	.for (var i = 0; i < 8; i++) nop
 	bit $ea
@@ -199,16 +203,16 @@ noptbl:
 	.for (var i = 0; i <= 28; i++) nop
 
 	lda #%00011011
-	dec VIC_CTRL1
-	sta VIC_CTRL1
+	dec VIC_config1
+	sta VIC_config1
 
 	lda #<irq1
 	ldx #>irq1
 	ldy #$00
-	sta $FFFE
-	stx $FFFF
-	sty VIC_HLINE
-	lsr VIC_IRR
+	sta sysvec_IRQ
+	stx sysvec_IRQ+1
+	sty VIC_raster
+	lsr VIC_irq_state
 
 	pla
 	tax
@@ -217,7 +221,7 @@ noptbl:
 	pla
 	rti
 
-//---------------------------------------
+//-----------------------------------------------------
 
 coarseTbl_upper:
 	.for (var i = 32; i < 39; i++)
@@ -260,7 +264,7 @@ bigSine_h:
         .byte $01, $01, $01, $01, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
         .byte $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
 
-//---------------------------------------
+//-----------------------------------------------------
 
 raster_stable: 		.byte $00
 temp1:				.byte $00
@@ -275,6 +279,7 @@ map:
 	.byte $20,$a6,$20,$e6,$a6,$20,$e6,$20,$a6,$20,$a6,$e4,$e5,$a6,$a4,$a5,$20,$a6,$20,$a0,$a1,$a2,$a6,$20,$e6,$a6,$e3,$e6,$20
 	.byte $20,$c0,$20,$c0,$e0,$e1,$e2,$20,$c0,$20,$c0,$20,$c0,$c0,$20,$c0,$20,$c0,$20,$20,$c0,$20,$e0,$e1,$e2,$c0,$20,$c0,$20
 	.byte $20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20
+
 charset:
 	.byte $3c,$66,$6e,$6e,$60,$62,$3c,$00,$18,$3c,$66,$7e,$66,$66,$66,$00	// 0
 	.byte $7c,$66,$66,$7c,$66,$66,$7c,$00,$3c,$66,$60,$60,$60,$66,$3c,$00	// 16

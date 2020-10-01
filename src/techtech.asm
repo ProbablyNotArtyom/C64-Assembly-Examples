@@ -1,22 +1,24 @@
 
-	#import "../main.asm"
+	#import "../include/system.inc"
+	#import "../include/kernal.inc"
+	#import "../include/macros.inc"
 	.encoding "screencode_upper"
 
-//---------------------------------------
+//-----------------------------------------------------
 
-.var	Screen 	= $0400
-.var	Color 	= $D800
+.var Screen 			= $0400
+.var Color 				= $D800
 
-.var	rirq_count 		= $20
-.var	offset		 	= $21
+.var rirq_count 		= $20
+.var offset				= $21
 
-.var 	COLORS_COUNT 	= 256
-.var 	MAP_COUNT 		= 112
-.var 	CHARSET_COUNT 	= 2048
-.var 	MAP_WIDTH		= 28
-.var 	MAP_HEIGHT 		= 4
+.var COLORS_COUNT		= 256
+.var MAP_COUNT			= 112
+.var CHARSET_COUNT		= 2048
+.var MAP_WIDTH			= 28
+.var MAP_HEIGHT			= 4
 
-//---------------------------------------
+//-----------------------------------------------------
 
 .macro IRQ_ENTER() {
 	pha
@@ -29,21 +31,21 @@
 .macro IRQ_SET(irqvec, rasterline) {
 	ldx #<irqvec
 	ldy #>irqvec
-	stx $FFFE
-	sty $FFFF
+	stx sysvec_IRQ
+	sty sysvec_IRQ+1
 	lda rasterline
-	sta VIC_HLINE
-	lsr VIC_CTRL1
+	sta VIC_raster
+	lsr VIC_config1
 }
 
 .macro IRQ_SET_IMMEDIATE(irqvec, rasterline) {
 	ldx #<irqvec
 	ldy #>irqvec
-	stx $FFFE
-	sty $FFFF
+	stx sysvec_IRQ
+	sty sysvec_IRQ+1
 	lda #rasterline
-	sta VIC_HLINE
-	lsr VIC_CTRL1
+	sta VIC_raster
+	lsr VIC_config1
 }
 
 .macro XWAIT(delay) {
@@ -58,7 +60,7 @@
 	bne !-
 }
 
-//-----------------------------------------------------
+//-------------------------------------------------------------------
 
 *=$0801 "Basic"
 BasicUpstart2(setup)
@@ -84,16 +86,16 @@ setup:
 	}
 
 	lda #<irq0
-	sta $FFFE
+	sta sysvec_IRQ
 	lda #>irq0
-	sta $FFFF
-	lda #<__waitpoint
-	sta $FFFA
+	sta sysvec_IRQ+1
+	lda #<__waitpoint		// Make the RESTORE key not crash everything
+	sta sysvec_NMI
 	lda #>__waitpoint
-	sta $FFFB
+	sta sysvec_NMI+1
 
 	lda #$04
-	sta VIC_HLINE
+	sta VIC_raster
 	lda #$01
 	sta offset
 	sta rirq_count
@@ -102,7 +104,7 @@ setup:
 	cli
 
 !:	lda #$00
-!:	cmp VIC_HLINE
+!:	cmp VIC_raster
 	bne !-
 	jmp !--
 
@@ -110,8 +112,8 @@ irq0:
 	IRQ_ENTER()
 	ldx #<irq0
 	ldy #>irq0
-	stx $FFFE
-	sty $FFFF
+	stx sysvec_IRQ
+	sty sysvec_IRQ+1
 	inc rirq_count
 	lda rirq_count
 	beq !++
@@ -119,24 +121,24 @@ irq0:
 	tax
 	lda sine256,x
 !:	ora #16
-	sta VIC_CTRL2
+	sta VIC_config2
 !:	pla
 	tax
 	pla
 	tay
 	pla
-	lsr VIC_IRR
-	inc VIC_HLINE
-	inc VIC_HLINE
+	lsr VIC_irq_state
+	inc VIC_raster
+	inc VIC_raster
 	rti
 
 __waitpoint:
 	rti
 
-//---------------------------------------
+//-----------------------------------------------------
 
 sine256:
-		.byte 4,3,3,2,2,2,1,1,1,0,0,0,0,0,0,0
+	.byte 4,3,3,2,2,2,1,1,1,0,0,0,0,0,0,0
 	.byte 0,0,0,0,0,0,0,1,1,1,1,2,2,3,3,3
 	.byte 4,4,4,5,5,6,6,6,6,7,7,7,7,7,7,7
 	.byte 7,7,7,7,7,7,7,6,6,6,5,5,5,4,4,4

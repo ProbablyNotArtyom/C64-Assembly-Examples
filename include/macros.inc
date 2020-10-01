@@ -1,3 +1,12 @@
+
+#if !__C64__
+#define	__C64__
+.encoding "petscii_upper"
+#endif
+
+//-----------------------------------------------------
+// Macros
+
 .macro waitx(Cycles) {
 
 	.var LC=5
@@ -119,9 +128,39 @@
 //=========================================================
 // Setting up registers
 
+// set_memory_map(kernal, basic, charrom, io) : configures port $01
+//    kernal  - if true, enable the kernal ROM ($E000-$EFFF)
+//    basic   - if true, enable the basic ROM ($A000-$BFFF)
+//    charrom - if true, enable the character ROM ($D000-$DFFF)
+//    io      - if true, enable the system I/O area ($D000-$DFFF)
+.macro set_memory_map(kernal, basic, charrom, io) {
+	.var regval = $30
+	.if (!charrom && io) .eval regval = regval + %00000100
+	.if (charrom && io) .error "set_memory_map() : CHARROM and IO cannot both be enabled!"
+	.if (!charrom && !io) {
+		.if (kernal || basic) .error "set_memory_map() : Cannot show RAM at $D000-$DFFF without showing all RAM"
+	} else {
+		.if (kernal && basic) .eval regval = regval + %00000011
+		.if (kernal && !basic) .eval regval = regval + %00000010
+		.if (!kernal && !basic) .eval regval = regval + %00000001
+		.if (!kernal && basic) .error "set_memory_map() : BASIC cannot be mapped in without KERNAL!"
+	}
+
+	lda #regval
+	sta $01
+}
+
+// get_screen_line(base, line) : returns the address of a line of the display
+//    base  - the base address of the screen (usually $400)
+//    line  - the line number to query
+.function get_screen_line(base, line) {
+	.if (line >= 25 || line < 0) .error "get_screen_line() : line " + toIntString(line) + " does not exist on display"
+	.return (base + (40*line))
+}
+
 .macro set_screen_char_base(screen, charset) {
-   lda   #[[screen & $3fff] / 64] | [[charset & $3fff] / 1024]
-   sta   $d018
+	lda #[[screen & $3fff] / 64] | [[charset & $3fff] / 1024]
+	sta $d018
 }
 
 .macro ClearScreen(screen, clearByte) {
@@ -145,6 +184,26 @@
 	sta $D800 + $200, x
 	sta $D800 + $300, x
 	inx
+	bne !loop-
+}
+
+.macro ClearColorRamLine(clearByte, line) {
+	.var base = get_screen_line($D800, line)-1
+	lda #clearByte
+	ldx #40
+!loop:
+	sta base, x
+	dex
+	bne !loop-
+}
+
+.macro ClearScreenLine(screen, clearByte, line) {
+	.var base = get_screen_line(screen, line)-1
+	lda #clearByte
+	ldx #40
+!loop:
+	sta base, x
+	dex
 	bne !loop-
 }
 
