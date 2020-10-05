@@ -2,6 +2,7 @@
 	#import "../include/system.inc"
 	#import "../include/kernal.inc"
 	#import "../include/macros.inc"
+	#import "../include/irq.inc"
 	.encoding "screencode_upper"
 
 //-----------------------------------------------------
@@ -17,48 +18,6 @@
 .var CHARSET_COUNT		= 2048
 .var MAP_WIDTH			= 28
 .var MAP_HEIGHT			= 4
-
-//-----------------------------------------------------
-
-.macro IRQ_ENTER() {
-	pha
-	tya
-	pha
-	txa
-	pha
-}
-
-.macro IRQ_SET(irqvec, rasterline) {
-	ldx #<irqvec
-	ldy #>irqvec
-	stx sysvec_IRQ
-	sty sysvec_IRQ+1
-	lda rasterline
-	sta VIC_raster
-	lsr VIC_config1
-}
-
-.macro IRQ_SET_IMMEDIATE(irqvec, rasterline) {
-	ldx #<irqvec
-	ldy #>irqvec
-	stx sysvec_IRQ
-	sty sysvec_IRQ+1
-	lda #rasterline
-	sta VIC_raster
-	lsr VIC_config1
-}
-
-.macro XWAIT(delay) {
-	ldx #delay
-!:	dex
-	bne !-
-}
-
-.macro YWAIT(delay) {
-	ldy #delay
-!:	dey
-	bne !-
-}
 
 //-------------------------------------------------------------------
 
@@ -85,14 +44,8 @@ setup:
 		copyMapCutoff(MAP_WIDTH, MAP_HEIGHT, map, $400+((i*2)+MAP_WIDTH)+(i*40*MAP_HEIGHT), (40-MAP_WIDTH-(i*2)))
 	}
 
-	lda #<irq0
-	sta sysvec_IRQ
-	lda #>irq0
-	sta sysvec_IRQ+1
-	lda #<__waitpoint		// Make the RESTORE key not crash everything
-	sta sysvec_NMI
-	lda #>__waitpoint
-	sta sysvec_NMI+1
+	:mov16 #irq0 : sysvec_IRQ
+	:mov16 #__waitpoint : sysvec_NMI
 
 	lda #$04
 	sta VIC_raster
@@ -103,17 +56,11 @@ setup:
 	sta $01
 	cli
 
-!:	lda #$00
-!:	cmp VIC_raster
-	bne !-
-	jmp !--
+	jmp *
 
 irq0:
-	IRQ_ENTER()
-	ldx #<irq0
-	ldy #>irq0
-	stx sysvec_IRQ
-	sty sysvec_IRQ+1
+	:irq_entry
+	:mov16 #irq0 : sysvec_IRQ
 	inc rirq_count
 	lda rirq_count
 	beq !++
@@ -122,26 +69,21 @@ irq0:
 	lda sine256,x
 !:	ora #16
 	sta VIC_config2
-!:	pla
-	tax
-	pla
-	tay
-	pla
+!:	:irq_exit
 	lsr VIC_irq_state
 	inc VIC_raster
 	inc VIC_raster
 	rti
 
 __waitpoint:
+	:irq_exit
 	rti
 
 //-----------------------------------------------------
 
 sine256:
-	.byte 4,3,3,2,2,2,1,1,1,0,0,0,0,0,0,0
-	.byte 0,0,0,0,0,0,0,1,1,1,1,2,2,3,3,3
-	.byte 4,4,4,5,5,6,6,6,6,7,7,7,7,7,7,7
-	.byte 7,7,7,7,7,7,7,6,6,6,5,5,5,4,4,4
+	.for (var i=0; i<256; i++)
+		.byte round(3.5+3.5*sin(toRadians(i*360/64)))
 
 map:
 	.byte $20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20,$20

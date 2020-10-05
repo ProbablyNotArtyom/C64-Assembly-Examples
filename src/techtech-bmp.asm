@@ -2,6 +2,7 @@
 	#import "../include/system.inc"
 	#import "../include/kernal.inc"
 	#import "../include/macros.inc"
+	#import "../include/irq.inc"
 	.encoding "screencode_upper"
 
 //-----------------------------------------------------
@@ -22,48 +23,6 @@
 .const BMPDAT			= "C64FILE, Bitmap=$0000, ScreenRam=$1f40, ColorRam=$2328, BackgroundColor = $2710"
 .var picture			= LoadBinary("Atilla.prg", BMPDAT)
 
-//-----------------------------------------------------
-
-.macro IRQ_ENTER() {
-	pha
-	tya
-	pha
-	txa
-	pha
-}
-
-.macro IRQ_SET(irqvec, rasterline) {
-	ldx #<irqvec
-	ldy #>irqvec
-	stx sysvec_IRQ
-	sty sysvec_IRQ+1
-	lda rasterline
-	sta VIC_raster
-	lsr VIC_config1
-}
-
-.macro IRQ_SET_IMMEDIATE(irqvec, rasterline) {
-	ldx #<irqvec
-	ldy #>irqvec
-	stx sysvec_IRQ
-	sty sysvec_IRQ+1
-	lda #rasterline
-	sta VIC_raster
-	lsr VIC_config1
-}
-
-.macro XWAIT(delay) {
-	ldx #delay
-!:	dex
-	bne !-
-}
-
-.macro YWAIT(delay) {
-	ldy #delay
-!:	dey
-	bne !-
-}
-
 //-------------------------------------------------------------------
 
 *=$0801 "Basic"
@@ -73,14 +32,8 @@ BasicUpstart2(setup)
 setup:
 	sei
 
-	lda #<irq0
-	sta sysvec_IRQ
-	lda #>irq0
-	sta sysvec_IRQ+1
-	lda #<__waitpoint		// Make the RESTORE key not crash everything
-	sta sysvec_NMI
-	lda #>__waitpoint
-	sta sysvec_NMI+1
+	:mov16 #irq0 : sysvec_IRQ
+	:mov16 #__waitpoint : sysvec_NMI
 
 	lda #$38
 	sta VIC_memory_config
@@ -108,50 +61,34 @@ setup:
 	sta $01
 	cli
 
-!:	lda #$00
-!:	cmp VIC_raster
-	bne !-
-	jmp !--
+	jmp *
 
 irq0:
-	IRQ_ENTER()
-	ldx #<irq0
-	ldy #>irq0
-	stx sysvec_IRQ
-	sty sysvec_IRQ+1
+	:irq_entry
+	:mov16 #irq0 : sysvec_IRQ
 	inc rirq_count
 	lda rirq_count
 	beq !++
 	and #%00111111
 	tax
 	lda sine256,x
-!:	and #$07
-	ora #$10
+!:	ora #16
 	sta VIC_config2
-!:	pla
-	tax
-	pla
-	tay
-	pla
+!:	:irq_exit
 	lsr VIC_irq_state
 	inc VIC_raster
 	inc VIC_raster
 	rti
 
 __waitpoint:
+	:irq_exit
 	rti
 
 //-----------------------------------------------------
 
 sine256:
-	.byte   $04, $04, $04, $05, $05, $05, $05, $06
-	.byte   $06, $06, $06, $07, $07, $07, $07, $07
-	.byte   $07, $07, $07, $07, $07, $07, $06, $06
-	.byte   $06, $06, $05, $05, $05, $05, $04, $04
-	.byte   $04, $03, $03, $02, $02, $02, $02, $01
-	.byte   $01, $01, $01, $00, $00, $00, $00, $00
-	.byte   $00, $00, $00, $00, $00, $00, $01, $01
-	.byte   $01, $01, $02, $02, $02, $02, $03, $03
+	.for (var i=0; i<256; i++)
+		.byte round(3.5+3.5*sin(toRadians(i*360/64)))
 
 //-----------------------------------------------------
 

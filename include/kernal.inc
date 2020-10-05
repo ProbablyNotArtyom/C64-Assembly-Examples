@@ -1,4 +1,7 @@
 
+#if !__HEADER_KERNAL__
+#define	__HEADER_KERNAL__
+
 #if !__C64__
 #define	__C64__
 .encoding "petscii_upper"

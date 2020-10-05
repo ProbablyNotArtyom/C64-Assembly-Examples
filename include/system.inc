@@ -1,4 +1,6 @@
 
+#importonce
+
 #if !__C64__
 #define	__C64__
 .encoding "petscii_upper"
@@ -170,33 +172,46 @@
 //-----------------------------------------------------
 
 .function _16bit_nextArgument(arg) {
-	.if (arg.getType() == AT_IMMEDIATE)
-	.return CmdArgument(arg.getType(),>arg.getValue())
+	.if (arg.getType()==AT_IMMEDIATE) .return CmdArgument(arg.getType(),>arg.getValue())
 	.return CmdArgument(arg.getType(),arg.getValue()+1)
 }
 
-.pseudocommand inc16 arg {
+.pseudocommand @mov value :tar1 :tar2 :tar3 :tar4 :tar5 :tar6 :tar7 :tar8 :tar9 :tar10 {
+	lda value
+	sta tar1
+	.if (tar2.getType()!=AT_NONE) sta tar2
+	.if (tar3.getType()!=AT_NONE) sta tar3
+	.if (tar4.getType()!=AT_NONE) sta tar4
+	.if (tar5.getType()!=AT_NONE) sta tar5
+	.if (tar6.getType()!=AT_NONE) sta tar6
+	.if (tar7.getType()!=AT_NONE) sta tar7
+	.if (tar8.getType()!=AT_NONE) sta tar8
+	.if (tar9.getType()!=AT_NONE) sta tar9
+	.if (tar10.getType()!=AT_NONE) sta tar10
+}
+
+.pseudocommand @inc16 arg {
 	inc arg
 	bne over
 	inc _16bit_nextArgument(arg)
 over:
 }
 
-.pseudocommand dec16 arg {
+.pseudocommand @dec16 arg {
 	lda arg
 	bne !+
 	dec _16bit_nextArgument(arg)
 !:	dec arg
 }
 
-.pseudocommand mov16 src : tar {
+.pseudocommand @mov16 src : tar {
 	lda src
 	sta tar
 	lda _16bit_nextArgument(src)
 	sta _16bit_nextArgument(tar)
 }
 
-.pseudocommand add16 arg1 : arg2 : tar {
+.pseudocommand @add16 arg1 :arg2 :tar {
 .if (tar.getType()==AT_NONE) .eval tar=arg1
 	lda arg1
 	adc arg2

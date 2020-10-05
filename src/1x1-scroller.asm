@@ -7,17 +7,17 @@
 //-----------------------------------------------------
 
 /* Constants that modify effect behavior */
-.const RASTER_TOP	= $C0			// Line to begin scroller section
-.const RASTER_END	= $CB			// Line to begin scroller section
-.const SCROLL_LINE	= 18			// Char line to display scroller
-.const SPEED		= 2				// Speed multiplier
+.const RASTER_TOP	= $C0				// Line to begin scroller section
+.const RASTER_END	= RASTER_TOP + 11	// Line to begin scroller section
+.const SCROLL_LINE	= 18				// Char line to display scroller
+.const SPEED		= 2					// Speed multiplier
 
 /* Constants */
 .const LINEADDR		= get_screen_line($0400, SCROLL_LINE)
 .const COLORADDR 	= get_screen_line($D800, SCROLL_LINE)
 
 /* Zeropage variables */
-.var x_offset		= $F0			// Current pixel offset
+.var x_offset		= $F0				// Current pixel offset
 .var saved_border	= $F1
 .var saved_bg		= $F2
 
@@ -38,6 +38,8 @@ setup:
 
 	/* Write color data */
 	ClearScreenLine($0400, ' ', SCROLL_LINE)
+	ClearScreen($0400, $FF)
+	ClearScreen($2000, $FF)
 	ClearColorRamLine(COLOR_WHITE, SCROLL_LINE)
 	lda #COLOR_BLACK
 	sta COLORADDR
@@ -80,13 +82,23 @@ setup:
 irq0:
 	inc VIC_irq_state	// Acknowledge the IRQ
 	{
-		wait(11)
+		wait(12)
 		lda #COLOR_BLACK
 		sta VIC_border_color
 		sta VIC_bg_color0
+	}
+	{
+
+		lda #$6B			// Set an invalid video mode to blank the first few rasterlines
+		sta VIC_config1		//   We need to do this because otherwise the last pixels of the previous charline
+							//   would bleed into the pitch black space we are trying to create
+
 		/* Set charROM to lower/upper mode */
 		lda #[[$0400 & $3fff] / 64] | [[$1800 & $3fff] / 1024]
+		ldy #$1B
+		waitx(63)			// Delay an entire rasterline
 		sta VIC_memory_config
+		sty VIC_config1
 	}
 	lda #RASTER_END		// Set next raster IRQ
 	sta VIC_raster
@@ -100,17 +112,25 @@ irq0:
 
 irq1:
 	inc VIC_irq_state	// Acknowledge the IRQ
-	lda #$08			// No scroll section here
-	sta VIC_config2
 	{
-		lda saved_border
-		ldx saved_bg
-		wait(30)
-		sta VIC_border_color
-		stx VIC_bg_color0
+
+		lda #$6B
+		ldy saved_bg
+		ldx saved_border
+		wait(12)
+		sta VIC_config1
+		sty VIC_bg_color0
+		stx VIC_border_color
+
+		lda #$08
+		sta VIC_config2
+	}
+	{
 		/* Set charROM to upper/graphic mode */
 		lda #[[$0400 & $3fff] / 64] | [[$1000 & $3fff] / 1024]
+		ldy #$1B
 		sta VIC_memory_config
+		sty VIC_config1
 	}
 	lda #RASTER_TOP		// Set next raster IRQ
 	sta VIC_raster
