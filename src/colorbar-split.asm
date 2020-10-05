@@ -55,7 +55,8 @@ irq0:
 
 	lda sine256_Y,x
 	sta VIC_raster
-	lda tris256_Y,x
+	
+	lda anti_sine256_Y,x
 	sta offset
 
 	lsr VIC_irq_state
@@ -82,7 +83,6 @@ irq1:
 	dex
 	bne !--
 
-
 	lda #$1
 	sta VIC_raster
 	:irq_exit
@@ -97,6 +97,9 @@ sine256_X:
 sine256_Y:
 	.for (var i=0; i<256; i++)
 		.byte round(127.5+127.5*sin(toRadians(i*360/256)))
+anti_sine256_Y:
+	.for (var i=0; i<256; i++)
+		.byte round(127.5+120.5*sin(toRadians(i*360/256)))
 
 modsine256_Y:
 	.for (var i=0; i<256; i++) {
