@@ -18,15 +18,23 @@
 
 *=$0801 "Basic"
 BasicUpstart2(setup)
-*=$810 "Program"
+*=$1000 "Program"
 
 setup:
 	sei
 	lda #$35
 	sta $01
-
+	
+	/* Just in case you're running a custom kernal...
+	we make sure you get the full experience ;) */
+	lda #COLOR_LIGHTBLUE
+	sta VIC_border_color
+	lda #COLOR_BLUE
+	sta VIC_bg_color0
+	
+	ClearColorRam(COLOR_WHITE)
+	
 	:mov16 #irq0 : sysvec_IRQ
-
 	ldx #$00
 	stx $DC0E
 	inx
@@ -47,7 +55,9 @@ irq0:
 	:mov16 #irq1 : sysvec_IRQ
 
 	lda #$08
+	ldx #COLOR_GRAY1
 	sta VIC_config2
+	stx VIC_bg_color0
 	dec VIC_border_color
 
 	inc rirq_count
@@ -66,6 +76,8 @@ irq0:
 irq1:
 	:irq_entry
 	inc VIC_border_color
+	lda #COLOR_BLUE
+	sta VIC_bg_color0
 
 	:mov16 #irq0 : sysvec_IRQ
 
@@ -109,21 +121,4 @@ modsine256_Y:
 				cos(toRadians(360*i/64))
 			)
 		)
-	}
-
-line256_Y:
-	.for (var i=0; i<256; i++) .byte i
-
-line256_X:
-	.for (var i=0; i<32; i++) .byte 0, 1, 2, 3, 4, 5, 6, 7
-
-
-tris256_Y:
-	.for (var i=0; i<256; i+=2) .byte i
-	.for (var i=256; i>0; i-=2) .byte (i-1)
-
-tris256_X:
-	.for (var i=0; i<16; i++) {
-		.byte 0, 1, 2, 3, 4, 5, 6, 7
-		.byte 7, 6, 5, 4, 3, 2, 1, 0
 	}

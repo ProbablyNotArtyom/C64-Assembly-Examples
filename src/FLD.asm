@@ -23,9 +23,9 @@ init:
 	lda #1			// enable raster interrupt
 	sta VIC_irq_mask
 	lda #<irq		// set irq vector
-	lda #>irq
+	ldx #>irq
 	sta vec_IRQ
-	sta vec_IRQ+1
+	stx vec_IRQ+1
 
 	lda #from
 	sta offset		// set offset

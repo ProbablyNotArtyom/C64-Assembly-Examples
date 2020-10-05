@@ -2,6 +2,7 @@
 	#import "../include/system.inc"
 	#import "../include/kernal.inc"
 	#import "../include/macros.inc"
+	#import "../include/irq.inc"
 
 //-----------------------------------------------------
 
@@ -141,7 +142,6 @@ irq1_end:
 	sta sysvec_IRQ
 	stx sysvec_IRQ+1
 	sty VIC_raster
-	lsr VIC_irq_state
 	lsr VIC_irq_state
 
 	pla
