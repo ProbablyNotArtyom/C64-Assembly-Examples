@@ -1,6 +1,5 @@
 
-#if !__HEADER_MACROS__
-#define	__HEADER_MACROS__
+#importonce
 
 #if !__C64__
 #define	__C64__
