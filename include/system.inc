@@ -97,6 +97,15 @@
 .const VIC_bg_color2		= $D023
 .const VIC_bg_color3		= $D024
 
+.const VIC_sprite0_offset	= $03F8
+.const VIC_sprite1_offset	= $03F9
+.const VIC_sprite2_offset	= $03FA
+.const VIC_sprite3_offset	= $03FB
+.const VIC_sprite4_offset	= $03FC
+.const VIC_sprite5_offset	= $03FD
+.const VIC_sprite6_offset	= $03FE
+.const VIC_sprite7_offset	= $03FF
+
 //-----------------------------------------------------
 // SID
 
@@ -219,4 +228,61 @@ over:
 	lda _16bit_nextArgument(arg1)
 	adc _16bit_nextArgument(arg2)
 	sta _16bit_nextArgument(tar)
+}
+
+//-----------------------------------------------------
+// repetition commands
+
+.macro ensureImmediateArgument(arg) {
+	.if (arg.getType()!=AT_IMMEDIATE)	.error "The argument must be immediate!"
+}
+
+.pseudocommand asl x {
+	:ensureImmediateArgument(x)
+	.for (var i=0; i<x.getValue(); i++) asl
+}
+
+.pseudocommand lsr x {
+	:ensureImmediateArgument(x)
+	.for (var i=0; i<x.getValue(); i++) lsr
+}
+
+.pseudocommand rol x {
+	:ensureImmediateArgument(x)
+	.for (var i=0; i<x.getValue(); i++) rol
+}
+
+.pseudocommand ror x {
+	:ensureImmediateArgument(x)
+	.for (var i=0; i<x.getValue(); i++) ror
+}
+
+.pseudocommand pla x {
+	:ensureImmediateArgument(x)
+	.for (var i=0; i<x.getValue(); i++) pla
+}
+
+.pseudocommand nop x {
+	:ensureImmediateArgument(x)
+	.for (var i=0; i<x.getValue(); i++) nop
+}
+
+.pseudocommand inx x {
+	:ensureImmediateArgument(x)
+	.for (var i=0; i<x.getValue(); i++) inx
+}
+
+.pseudocommand dex x {
+	:ensureImmediateArgument(x)
+	.for (var i=0; i<x.getValue(); i++) dex
+}
+
+.pseudocommand iny x {
+	:ensureImmediateArgument(x)
+	.for (var i=0; i<x.getValue(); i++) iny
+}
+
+.pseudocommand dey x {
+	:ensureImmediateArgument(x)
+	.for (var i=0; i<x.getValue(); i++) dey
 }

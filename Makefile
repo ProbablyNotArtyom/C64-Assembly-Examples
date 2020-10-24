@@ -1,4 +1,5 @@
-CRUNCH = false
+CRUNCH := false
+DEBUG := false
 
 BASEDIR := $(PWD)
 BINDIR := bin
@@ -6,12 +7,15 @@ SRCDIR := src
 INCDIR := include
 
 AS = kickass
-ASSFLAGS = -symbolfiledir ../bin/syms -symbolfile -libdir $(INCDIR)
+ASSFLAGS = -libdir $(INCDIR)
+ifeq ("$(DEBUG)","true")
+ASSFLAGS += -symbolfiledir ../bin -symbolfile -vicesymbols -debug -debugdump
+endif
 
 REBUILD := $(shell find $(BASEDIR)/$(INCDIR) -name '*.inc')
 SOURCES := $(shell find $(BASEDIR)/$(SRCDIR) -name '*.asm')
 OUTPUTS := $(patsubst $(BASEDIR)/$(SRCDIR)/%.asm, ./$(BINDIR)/%.prg, $(SOURCES))
-RUN_OUTPUTS := $(foreach target, $(OUTPUTS:./%=%), run-$(target))
+RUN_OUTPUTS := $(foreach target, $(OUTPUTS), run-$(notdir $(target)))
 
 ########################################
 
@@ -29,5 +33,5 @@ ifeq ("$(CRUNCH)","true")
 	exomizer sfx sys $@ -o $@
 endif
 
-$(RUN_OUTPUTS): $$(subst run-,,$$@)
-	./run.sh $(subst run-,,$@)
+$(RUN_OUTPUTS): $(BINDIR)/$$(subst run-,,$$@)
+	./run.sh $^
