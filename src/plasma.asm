@@ -1,11 +1,11 @@
-/*
-Example of a char cycler effect for the Commodore 64
-Coded by Scan/Desire
-Compile using Kick Assembler
-Made with the help of consulting http://lodev.org/cgtutor/plasma.html
-Pseudo-random number generator from http://codebase64.org/doku.php?id=base:small_fast_8-bit_prng
-For the full effect, see the "C64, Hear 64" demo from Desire: https://www.youtube.com/watch?v=ftEYcJDlFjg#t=6m55s
- */
+
+// Example of a char cycler effect for the Commodore 64
+// Coded by Scan/Desire
+// Compile using Kick Assembler
+// Made with the help of consulting http://lodev.org/cgtutor/plasma.html
+// Pseudo-random number generator from http://codebase64.org/doku.php?id=base:small_fast_8-bit_prng
+// For the full effect, see the "C64, Hear 64" demo from Desire: https://www.youtube.com/watch?v=ftEYcJDlFjg#t=6m55s
+
 .const w=40
 .const h=25
 .const multicolor=true

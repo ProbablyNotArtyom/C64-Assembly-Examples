@@ -19,13 +19,13 @@ init:
 	lda #$00		// set garbage byte
 	sta $3fff
 	lda #$7f		// disable timer interrupt
-	sta $dc0d
+	sta CIA1_ICR
 	lda #1			// enable raster interrupt
 	sta VIC_irq_mask
 	lda #<irq		// set irq vector
-	ldx #>irq
 	sta vec_IRQ
-	stx vec_IRQ+1
+	lda #>irq
+	sta vec_IRQ+1
 
 	lda #from
 	sta offset		// set offset
@@ -33,7 +33,7 @@ init:
 	lda #4			// to evoke our irq routine on 4th line
 	sta VIC_raster
 	cli				// enable interrupt
-	jmp *
+!:	jmp !-
 
 //-----------------------------------------------------
 
@@ -43,13 +43,13 @@ irq:
 	ldx	offset
 	lda sine256,x
 	tax
-l2:	ldy VIC_raster	// moving 1st bad line
+l2:	ldy VIC_raster		// moving 1st bad line
 l1:	cpy VIC_raster
-	beq l1			// wait for begin of next line
-	dey				// iy - bad line
+	beq l1				// wait for begin of next line
+	dey					// iy - bad line
 	tya
-	and #$07		// clear higher 5 bits
-	ora #$10		// set text mode
+	and #$07			// clear higher 5 bits
+	ora #$10			// set text mode
 	sta VIC_config1
 	dex
 	bne l2
@@ -59,7 +59,7 @@ l1:	cpy VIC_raster
 	sta VIC_bg_color0
 	lsr VIC_irq_state	// acknowledge the raster interrupt
 	inc offset
-	jmp $ea31			// do standard irq routine
+	jmp END_ISR			// exit the irq with the kernal ret
 
 //-----------------------------------------------------
 

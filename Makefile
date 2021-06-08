@@ -9,7 +9,7 @@ INCDIR := include
 AS = kickass
 ASSFLAGS = -libdir $(INCDIR)
 ifeq ("$(DEBUG)","true")
-ASSFLAGS += -symbolfiledir ../bin -symbolfile -vicesymbols -debug -debugdump
+ASSFLAGS += -symbolfiledir ../bin -symbolfile -vicesymbols -debug -debugdump -pseudoc3x
 endif
 
 REBUILD := $(shell find $(BASEDIR)/$(INCDIR) -name '*.inc')

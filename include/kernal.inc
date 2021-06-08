@@ -75,4 +75,9 @@
 .const RESTOR				= $FF8A
 .const VECTOR				= $FF8D
 
+.const SYS_ISR 				= $EA31			// The entry point for the kernal's internal ISR
+.const END_ISR 				= $EA81			// Fast IRQ return, restoring all registers
+											// This routine is a lot faster, but it doesnt
+											// update the keyboard or any other internal kernal stuff
+											 
 //-----------------------------------------------------
